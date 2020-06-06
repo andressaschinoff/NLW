@@ -6,6 +6,8 @@ import api from '../../services/api';
 import axios from 'axios';
 import { LeafletMouseEvent } from 'leaflet';
 
+import Dropzone from '../../components/Dropzone';
+
 import './style.css';
 
 import logo from '../../assets/logo.svg';
@@ -44,6 +46,7 @@ const CreatePoint = () => {
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
   // prettier-ignore
   const [selectedPosition, setSelectedPosition] = useState<[number, number]>([0, 0]);
+  const [selectedFile, setSelectedFile] = useState<File>();
 
   const history = useHistory();
 
@@ -59,7 +62,7 @@ const CreatePoint = () => {
         'https://servicodados.ibge.gov.br/api/v1/localidades/estados'
       )
       .then((response) => {
-        const ufInitials = response.data.map((uf) => uf.sigla);
+        const ufInitials = response.data.map((uf) => uf.sigla).sort();
         setUfs(ufInitials);
       });
   }, []);
@@ -73,7 +76,7 @@ const CreatePoint = () => {
         `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${selectedUf}/municipios`
       )
       .then((response) => {
-        const cityNames = response.data.map((city) => city.nome);
+        const cityNames = response.data.map((city) => city.nome).sort();
         setCities(cityNames);
       });
   }, [selectedUf]);
@@ -117,21 +120,28 @@ const CreatePoint = () => {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+
     const { name, email, whatsapp } = formData;
     const uf = selectedUf;
     const city = selectedCity;
     const [latitude, longitude] = selectedPosition;
     const items = selectedItems;
-    const data = {
-      name,
-      email,
-      whatsapp,
-      uf,
-      city,
-      latitude,
-      longitude,
-      items,
-    };
+
+    const data = new FormData();
+
+    data.append('name', name);
+    data.append('email', email);
+    data.append('whatsapp', whatsapp);
+    data.append('uf', uf);
+    data.append('city', city);
+    data.append('latitude', String(latitude));
+    data.append('longitude', String(longitude));
+    data.append('items', items.join(','));
+
+    if (selectedFile) {
+      data.append('image', selectedFile);
+    }
+
     await api.post('points', data);
 
     alert('Ponto de coleta criado');
@@ -153,6 +163,9 @@ const CreatePoint = () => {
         <h1>
           Cadastro do <br /> ponto de coleta
         </h1>
+
+        <Dropzone onFileUploaded={setSelectedFile} />
+
         <fieldset>
           <legend>
             <h2>Dados</h2>
@@ -190,7 +203,6 @@ const CreatePoint = () => {
             </div>
           </div>
         </fieldset>
-
         <fieldset>
           <legend>
             <h2>Endereço</h2>
@@ -245,7 +257,6 @@ const CreatePoint = () => {
             </div>
           </div>
         </fieldset>
-
         <fieldset>
           <legend>
             <h2>Ítens de coleta</h2>
@@ -265,7 +276,6 @@ const CreatePoint = () => {
             ))}
           </ul>
         </fieldset>
-
         <button type="submit">Cadastrar ponto de coleta</button>
       </form>
     </div>
